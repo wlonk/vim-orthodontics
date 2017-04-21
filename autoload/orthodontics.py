@@ -132,16 +132,13 @@ if start_row is None or end_row is None:
 else:
     text = get_text_between(buffer, start_row, start_col, end_row, end_col)
 
-    # Parse
-    grammar.g.parse(text)
-
-    # Shape with newlines and commas, or empty strings and comma-spaces
+    tree = grammar.Visitor().parse(text)
 
     # Re-insert in that area.
-    replacement_text = 'BLEEP'
+    replacement_text = tree.outline()
 
     char, row, col = opening_triple
     vim.command("call cursor({}, {})".format(row, col + 1))
-    vim.command("normal ci{}".format(char))
+    vim.command("normal ca{}".format(char))
     vim.command("normal l")
     vim.command("normal i{}".format(replacement_text))
