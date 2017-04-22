@@ -128,17 +128,16 @@ _, start_row, start_col = opening_triple
 _, end_row, end_col = closing_triple
 
 if start_row is None or end_row is None:
-    pass
+    print("No surrounding characters.")
 else:
     text = get_text_between(buffer, start_row, start_col, end_row, end_col)
-
     tree = grammar.Visitor().parse(text)
-
-    # Re-insert in that area.
+    # TODO: Inline or outline, as appropriate:
     replacement_text = tree.outline()
-
     char, row, col = opening_triple
+    # TODO: Save the values of these and recover them at the end of this
+    # operation:
+    vim.command("setl noai nocin nosi inde=")
     vim.command("call cursor({}, {})".format(row, col + 1))
-    vim.command("normal ca{}".format(char))
-    vim.command("normal l")
-    vim.command("normal i{}".format(replacement_text))
+    vim.command("normal da{}".format(char))
+    vim.command("normal a{}".format(replacement_text))
