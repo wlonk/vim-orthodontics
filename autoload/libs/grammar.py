@@ -4,7 +4,9 @@ from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 
 
-# TODO: handle escaped quotes
+# TODO: handle escaped quotes.
+# TODO: handle kwargs with = as KV nodes, which implies KV nodes can be in any
+# surrounders.
 g = Grammar(
     r"""
 expression
