@@ -1,7 +1,8 @@
-import six
-
 from parsimonious.grammar import Grammar
-from parsimonious.nodes import NodeVisitor
+from parsimonious.nodes import (
+    NodeVisitor,
+    Node,
+)
 
 
 # TODO: handle escaped quotes.
@@ -9,214 +10,268 @@ from parsimonious.nodes import NodeVisitor
 # surrounders.
 g = Grammar(
     r"""
-expression
-    = braces_exp
-    / parens_exp
-    / brackt_exp
-    / tokens
+surrounded
+    = ( '(' ws expr? ws ')' )
+    / ( '[' ws expr? ws ']' )
+    / ( '{' ws expr? ws '}' )
 
-braces_exp = '{' ws expression ws '}'
-parens_exp = '(' ws expression ws ')'
-brackt_exp = '[' ws expression ws ']'
-tokens = token (ws sep ws (expression)?)?
+expr
+    = ( car sep expr )
+    / ( car sep? )
 
-sep = ','
+car
+    = kv
+    / number
+    / string
+    / surrounded
+    / fn
+    / symb
 
-token
-    = key_value
-    / quoted_string
-    / ~r"[0-9A-Za-z_]+"
+sep = ( ws "," ws )
 
-quoted_string
-    = single_quotes
-    / double_quotes
+kv
+    = ( k ws '=' ws v )
+    / ( k ws ':' ws v )
 
-key_value
-    = k1
-    / k2
-    / k3
-    / k4
+k
+    = string
+    / symb
 
-k1 = key ws ":" ws braces_exp
-k2 = key ws ":" ws parens_exp
-k3 = key ws ":" ws brackt_exp
-k4 = key ws ":" ws token
+v
+    = number
+    / string
+    / surrounded
+    / fn
+    / symb
 
-key
-    = quoted_string
-    / ~r"[0-9A-Za-z_]+"
+fn = symb surrounded
 
-single_quotes = "'" ~"[^']*" "'"
-double_quotes = '"' ~'[^"]*' '"'
+symb = ~r"[A-Za-z0-9._-]+"
+
+string
+    = ( '"' ~r'[^"]*' '"' )
+    / ( "'" ~r"[^']*" "'" )
+
+number = ~r"[0-9]+[.]?[0-9]*"
 
 ws = ~r"[ \t\n\r]*"
-    """)
+    """
+)
 
 
-class Expression(object):
-    def __init__(self, prefix, suffix, children):
+class FamilyMixin(object):
+    parent = None
+
+    def indent(self):
+        if self.parent is None:
+            return 0
+        return self.parent.indent()
+
+
+class StringNode(object):
+    def __init__(self, content):
+        self.content = content
+
+    def inline(self):
+        return u"{s.content}".format(s=self)
+
+    def outline(self):
+        return u"{s.content}".format(s=self)
+
+
+class ListNode(FamilyMixin):
+    def __init__(self, content):
+        self.content = [
+            el
+            for el
+            in content
+            if el
+        ]
+
+    def __add__(self, other):
+        return ListNode(content=self.content + other)
+
+    def __iter__(self):
+        for el in self.content:
+            yield el
+
+    def __len__(self):
+        return len(self.content)
+
+    def inline(self):
+        return u", ".join(
+            node.inline()
+            for node
+            in self.content
+        )
+
+    def outline(self):
+        indent = u"    " * self.indent()
+        return u",\n".join(
+            "{}{}".format(indent, node.outline())
+            for node
+            in self.content
+        ) + ("," if self.content else "")
+
+
+class SurroundedNode(FamilyMixin):
+    def __init__(self, prefix, content, suffix):
         self.prefix = prefix
+        self.content = content
         self.suffix = suffix
-        self.children = children
-        self.parent = None
 
-    @property
     def indent(self):
         if self.parent is None:
-            return 0
-        return self.parent.indent + 1
+            return 1
+        return self.parent.indent() + 1
 
     def inline(self):
-        return u"{prefix}{content}{suffix}".format(
-            prefix=self.prefix,
-            content=u", ".join(
-                c.inline() for c in self.children
-            ),
-            suffix=self.suffix,
+        return u"{s.prefix}{content}{s.suffix}".format(
+            s=self,
+            content=self.content.inline(),
         )
 
     def outline(self):
-        indent = u"    " * self.indent
-        inner_indent = indent + u"    "
-        return u"{prefix}\n{content}\n{indent}{suffix}".format(
+        content = self.content.outline()
+        if not content:
+            return u"{s.prefix}{s.suffix}".format(s=self)
+        indent = u"    " * (self.indent() - 1)
+        return u"{s.prefix}\n{content}\n{indent}{s.suffix}".format(
+            s=self,
+            content=self.content.outline(),
             indent=indent,
-            prefix=self.prefix,
-            content=u",\n".join(
-                u"{}{}".format(
-                    inner_indent,
-                    c.outline(),
-                ) for c in self.children
-            ) + u",",
-            suffix=self.suffix,
         )
 
 
-class KVNode(object):
-    def __init__(self, key, value):
-        self.key = key
-        self.value = value
-        self.parent = None
-
-    @property
-    def indent(self):
-        if self.parent is None:
-            return 0
-        return self.parent.indent + 1
+class FnNode(FamilyMixin):
+    def __init__(self, symb, surrounded):
+        self.symb = symb
+        self.surrounded = surrounded
 
     def inline(self):
-        return u"{}: {}".format(
-            self.key,
-            self.value.inline(),
+        return u"{}{}".format(
+            self.symb.inline(),
+            self.surrounded.inline(),
         )
 
     def outline(self):
-        return u"{}: {}".format(
-            self.key,
-            self.value.outline(),
+        return u"{}{}".format(
+            self.symb.outline(),
+            self.surrounded.outline(),
         )
 
 
-class TextNode(object):
-    def __init__(self, text):
-        self.text = text
+class KVNode(FamilyMixin):
+    def __init__(self, key, sep, val):
+        self.key = key
+        self.sep = sep
+        self.val = val
+
+    def format_sep(self):
+        if self.sep == ':':
+            return ": "
+        return self.sep
 
     def inline(self):
-        return u"{}".format(self.text)
+        return u"{key}{sep}{val}".format(
+            key=self.key.inline(),
+            sep=self.format_sep(),
+            val=self.val.inline(),
+        )
 
-    outline = inline
+    def outline(self):
+        return u"{key}{sep}{val}".format(
+            key=self.key.outline(),
+            sep=self.format_sep(),
+            val=self.val.outline(),
+        )
 
 
 class Visitor(NodeVisitor):
     grammar = g
-
-    def visit_token(self, node, token):
-        token = token[0]
-        if isinstance(token, six.string_types):
-            return TextNode(token)
-        if isinstance(token, KVNode):
-            return token
-        return TextNode(token.text)
-
-    def visit_tokens(self, node, tokens):
-        car, cdr = tokens
-        if cdr and isinstance(cdr, list) and len(cdr):
-            try:
-                cdr = cdr[0][3][0]
-            except (TypeError, IndexError):
-                return [car]
-            else:
-                return [car] + cdr
-        return [car]
-
-    def visit_expression(self, node, expression):
-        return expression[0]
-
-    def handle_visit_surrounded(self, prefix, exp, suffix):
-        _, _, exp, _, _ = exp
-        if isinstance(exp, Expression):
-            exp = [exp]
-        ret = Expression(prefix=prefix, children=exp, suffix=suffix)
-        if isinstance(exp[0], Expression):
-            exp[0].parent = ret
-        return ret
-
-    def visit_braces_exp(self, node, braces_exp):
-        return self.handle_visit_surrounded("{", braces_exp, "}")
-
-    def visit_parens_exp(self, node, parens_exp):
-        return self.handle_visit_surrounded("(", parens_exp, ")")
-
-    def visit_brackt_exp(self, node, brackt_exp):
-        return self.handle_visit_surrounded("[", brackt_exp, "]")
-
-    def visit_sep(self, node, sep):
-        return
-
-    def handle_kv(self, kv):
-        key, _, _, _, value = kv
-        if isinstance(value, list):
-            value = value[0]
-        ret = KVNode(key=key, value=value)
-        value.parent = ret
-        return ret
-
-    def visit_k1(self, node, k1):
-        return self.handle_kv(k1)
-
-    def visit_k2(self, node, k2):
-        return self.handle_kv(k2)
-
-    def visit_k3(self, node, k3):
-        return self.handle_kv(k3)
-
-    def visit_k4(self, node, k4):
-        return self.handle_kv(k4)
-
-    def visit_key_value(self, node, key_value):
-        return key_value[0]
-
-    def visit_key(self, node, key):
-        key = key[0]
-        if isinstance(key, six.string_types):
-            return key
-        return key.text
-
-    def visit_quoted_string(self, node, quoted_string):
-        return quoted_string[0]
-
-    def visit_single_quotes(self, node, single_quotes):
-        _, text, _ = single_quotes
-        return "'" + text.text + "'"
-
-    def visit_double_quotes(self, node, double_quotes):
-        _, text, _ = double_quotes
-        return '"' + text.text + '"'
-
-    def visit_ws(self, node, ws):
-        return
+    valid_nodes = (
+        SurroundedNode,
+        KVNode,
+        StringNode,
+        FnNode,
+    )
 
     def generic_visit(self, node, visited_children):
         return visited_children or node
+
+    def visit_surrounded(self, node, elements):
+        prefix, _, expr, _, suffix = elements[0]
+        if isinstance(expr, Node):
+            expr = ListNode(content=[])
+        else:
+            expr = expr[0]
+        ret = SurroundedNode(
+            prefix=prefix.text,
+            content=expr,
+            suffix=suffix.text,
+        )
+        expr.parent = ret
+        return ret
+
+    def visit_expr(self, node, elements):
+        car = elements[0][0]
+        cdr = elements[0][2:]
+        if cdr:
+            content = [car] + cdr[0].content
+        else:
+            content = [car]
+        ret = ListNode(content=content)
+        for el in content:
+            el.parent = ret
+        return ret
+
+    def visit_car(self, node, elements):
+        el = elements[0]
+        if isinstance(el, self.valid_nodes):
+            return el
+        if isinstance(el, Node):
+            return StringNode(content=el.text)
+        raise ValueError("Invalid el")
+
+    def visit_kv(self, node, elements):
+        key, _, sep, _, val = elements[0]
+        ret = KVNode(
+            key=key,
+            sep=sep.text,
+            val=val,
+        )
+        val.parent = ret
+        return ret
+
+    def visit_k(self, node, elements):
+        el = elements[0]
+        if isinstance(el, StringNode):
+            return el
+        raise ValueError("Somehow, a bad key")
+
+    def visit_v(self, node, elements):
+        el = elements[0]
+        if isinstance(el, self.valid_nodes):
+            return el
+        if isinstance(el, Node):
+            return StringNode(content=el.text)
+        raise ValueError("Invalid el")
+
+    def visit_symb(self, node, elements):
+        return StringNode(content=node.text)
+
+    def visit_string(self, node, elements):
+        open, txt, close = elements[0]
+        return StringNode(content=open.text + txt.text + close.text)
+
+    def visit_fn(self, node, elements):
+        symb, surrounded = elements
+        ret = FnNode(symb=symb, surrounded=surrounded)
+        surrounded.parent = ret
+        return ret
+
+    def visit_number(self, node, elements):
+        return StringNode(content=node.text)
 
 
 if __name__ == "__main__":
@@ -224,13 +279,287 @@ if __name__ == "__main__":
 
     def single_test(input, inline, outline):
         result = Visitor().parse(input)
-        assert result.inline() == inline
-        assert result.outline() == outline
+        assert result.inline() == inline, repr(result.inline())
+        assert result.outline() == outline, repr(result.outline())
+        print("Passed: {}".format(input))
 
-    single_test("( test )", "(test)", "(\n    test,\n)")
-    single_test("[foo, bar,]", "[foo, bar]", "[\n    foo,\n    bar,\n]")
-    single_test(
-        "{ 'bim': boo, hi: [there, jim]}",
-        "{'bim': boo, hi: [there, jim]}",
-        "{\n    'bim': boo,\n    hi: [\n        there,\n        jim,\n    ],\n}"
-    )
+single_test("()", "()", "()")
+single_test("[]", "[]", "[]")
+single_test("{}", "{}", "{}")
+single_test(
+    "(foo)",
+    "(foo)",
+    """
+(
+    foo,
+)
+    """.strip(),
+)
+single_test(
+    "(foo,)",
+    "(foo)",
+    """
+(
+    foo,
+)
+    """.strip(),
+)
+single_test(
+    "(foo, bar, baz)",
+    "(foo, bar, baz)",
+    """
+(
+    foo,
+    bar,
+    baz,
+)
+    """.strip(),
+)
+single_test(
+    "(foo, bar, baz,)",
+    "(foo, bar, baz)",
+    """
+(
+    foo,
+    bar,
+    baz,
+)
+    """.strip(),
+)
+single_test(
+    "([], {}, (),)",
+    "([], {}, ())",
+    """
+(
+    [],
+    {},
+    (),
+)
+    """.strip(),
+)
+single_test(
+    "{foo: bar}",
+    "{foo: bar}",
+    """
+{
+    foo: bar,
+}
+    """.strip(),
+)
+single_test(
+    "({foo: bar,},bing,[bong])",
+    "({foo: bar}, bing, [bong])",
+    """
+(
+    {
+        foo: bar,
+    },
+    bing,
+    [
+        bong,
+    ],
+)
+    """.strip(),
+)
+single_test(
+    "({foo: [],},bing,[bong])",
+    "({foo: []}, bing, [bong])",
+    """
+(
+    {
+        foo: [],
+    },
+    bing,
+    [
+        bong,
+    ],
+)
+    """.strip(),
+)
+single_test(
+    "{ foo }",
+    "{foo}",
+    """
+{
+    foo,
+}
+    """.strip(),
+)
+single_test(
+    '{ "foo" }',
+    '{"foo"}',
+    '''
+{
+    "foo",
+}
+    '''.strip(),
+)
+single_test(
+    "{ 'foo' }",
+    "{'foo'}",
+    """
+{
+    'foo',
+}
+    """.strip(),
+)
+single_test(
+    "[foo.bar]",
+    "[foo.bar]",
+    """
+[
+    foo.bar,
+]
+    """.strip(),
+)
+single_test(
+    "[1]",
+    "[1]",
+    """
+[
+    1,
+]
+    """.strip(),
+)
+single_test(
+    "[1.]",
+    "[1.]",
+    """
+[
+    1.,
+]
+    """.strip(),
+)
+single_test(
+    "[1.0]",
+    "[1.0]",
+    """
+[
+    1.0,
+]
+    """.strip(),
+)
+single_test(
+    "[1, 2.0]",
+    "[1, 2.0]",
+    """
+[
+    1,
+    2.0,
+]
+    """.strip(),
+)
+single_test(
+    "{ foo: bar }",
+    "{foo: bar}",
+    """
+{
+    foo: bar,
+}
+    """.strip(),
+)
+single_test(
+    "{ 'foo': bar }",
+    "{'foo': bar}",
+    """
+{
+    'foo': bar,
+}
+    """.strip(),
+)
+single_test(
+    "{ 'bim': boo, hi: [there, jim]}",
+    "{'bim': boo, hi: [there, jim]}",
+    """
+{
+    'bim': boo,
+    hi: [
+        there,
+        jim,
+    ],
+}
+    """.strip(),
+)
+single_test(
+    "(foo=bar, bim={baz: boo},)",
+    "(foo=bar, bim={baz: boo})",
+    """
+(
+    foo=bar,
+    bim={
+        baz: boo,
+    },
+)
+    """.strip(),
+)
+single_test(
+    "(foo,bar=baz,[bim,bloo],what={is:this})",
+    "(foo, bar=baz, [bim, bloo], what={is: this})",
+    """
+(
+    foo,
+    bar=baz,
+    [
+        bim,
+        bloo,
+    ],
+    what={
+        is: this,
+    },
+)
+    """.strip(),
+)
+single_test(
+    "[foo()]",
+    "[foo()]",
+    """
+[
+    foo(),
+]
+    """.strip(),
+)
+single_test(
+    "[foo(bar)]",
+    "[foo(bar)]",
+    """
+[
+    foo(
+        bar,
+    ),
+]
+    """.strip(),
+)
+single_test(
+    """
+    (foo, {'kwi': zok.pim,
+           'bel': zok.wub,
+           'pok': zok.nux,
+           'lon': dee(foo),
+           'hoi': dee(zok.che.rem('eph', toi=mep))},
+    bar='bim', kuh={'rif': tou})
+    """.strip(),
+    "(foo, {'kwi': zok.pim, 'bel': zok.wub, 'pok': zok.nux, 'lon': dee(foo), 'hoi': dee(zok.che.rem('eph', toi=mep))}, bar='bim', kuh={'rif': tou})",  # NOQA
+    """
+(
+    foo,
+    {
+        'kwi': zok.pim,
+        'bel': zok.wub,
+        'pok': zok.nux,
+        'lon': dee(
+            foo,
+        ),
+        'hoi': dee(
+            zok.che.rem(
+                'eph',
+                toi=mep,
+            ),
+        ),
+    },
+    bar='bim',
+    kuh={
+        'rif': tou,
+    },
+)
+    """.strip(),
+)
