@@ -283,283 +283,283 @@ if __name__ == "__main__":
         assert result.outline() == outline, repr(result.outline())
         print("Passed: {}".format(input))
 
-single_test("()", "()", "()")
-single_test("[]", "[]", "[]")
-single_test("{}", "{}", "{}")
-single_test(
-    "(foo)",
-    "(foo)",
-    """
-(
-    foo,
-)
-    """.strip(),
-)
-single_test(
-    "(foo,)",
-    "(foo)",
-    """
-(
-    foo,
-)
-    """.strip(),
-)
-single_test(
-    "(foo, bar, baz)",
-    "(foo, bar, baz)",
-    """
-(
-    foo,
-    bar,
-    baz,
-)
-    """.strip(),
-)
-single_test(
-    "(foo, bar, baz,)",
-    "(foo, bar, baz)",
-    """
-(
-    foo,
-    bar,
-    baz,
-)
-    """.strip(),
-)
-single_test(
-    "([], {}, (),)",
-    "([], {}, ())",
-    """
-(
-    [],
-    {},
-    (),
-)
-    """.strip(),
-)
-single_test(
-    "{foo: bar}",
-    "{foo: bar}",
-    """
-{
-    foo: bar,
-}
-    """.strip(),
-)
-single_test(
-    "({foo: bar,},bing,[bong])",
-    "({foo: bar}, bing, [bong])",
-    """
-(
+    single_test("()", "()", "()")
+    single_test("[]", "[]", "[]")
+    single_test("{}", "{}", "{}")
+    single_test(
+        "(foo)",
+        "(foo)",
+        """
+    (
+        foo,
+    )
+        """.strip(),
+    )
+    single_test(
+        "(foo,)",
+        "(foo)",
+        """
+    (
+        foo,
+    )
+        """.strip(),
+    )
+    single_test(
+        "(foo, bar, baz)",
+        "(foo, bar, baz)",
+        """
+    (
+        foo,
+        bar,
+        baz,
+    )
+        """.strip(),
+    )
+    single_test(
+        "(foo, bar, baz,)",
+        "(foo, bar, baz)",
+        """
+    (
+        foo,
+        bar,
+        baz,
+    )
+        """.strip(),
+    )
+    single_test(
+        "([], {}, (),)",
+        "([], {}, ())",
+        """
+    (
+        [],
+        {},
+        (),
+    )
+        """.strip(),
+    )
+    single_test(
+        "{foo: bar}",
+        "{foo: bar}",
+        """
     {
         foo: bar,
-    },
-    bing,
-    [
-        bong,
-    ],
-)
-    """.strip(),
-)
-single_test(
-    "({foo: [],},bing,[bong])",
-    "({foo: []}, bing, [bong])",
-    """
-(
+    }
+        """.strip(),
+    )
+    single_test(
+        "({foo: bar,},bing,[bong])",
+        "({foo: bar}, bing, [bong])",
+        """
+    (
+        {
+            foo: bar,
+        },
+        bing,
+        [
+            bong,
+        ],
+    )
+        """.strip(),
+    )
+    single_test(
+        "({foo: [],},bing,[bong])",
+        "({foo: []}, bing, [bong])",
+        """
+    (
+        {
+            foo: [],
+        },
+        bing,
+        [
+            bong,
+        ],
+    )
+        """.strip(),
+    )
+    single_test(
+        "{ foo }",
+        "{foo}",
+        """
     {
-        foo: [],
-    },
-    bing,
-    [
-        bong,
-    ],
-)
-    """.strip(),
-)
-single_test(
-    "{ foo }",
-    "{foo}",
-    """
-{
-    foo,
-}
-    """.strip(),
-)
-single_test(
-    '{ "foo" }',
-    '{"foo"}',
-    '''
-{
-    "foo",
-}
-    '''.strip(),
-)
-single_test(
-    "{ 'foo' }",
-    "{'foo'}",
-    """
-{
-    'foo',
-}
-    """.strip(),
-)
-single_test(
-    "[foo.bar]",
-    "[foo.bar]",
-    """
-[
-    foo.bar,
-]
-    """.strip(),
-)
-single_test(
-    "[1]",
-    "[1]",
-    """
-[
-    1,
-]
-    """.strip(),
-)
-single_test(
-    "[1.]",
-    "[1.]",
-    """
-[
-    1.,
-]
-    """.strip(),
-)
-single_test(
-    "[1.0]",
-    "[1.0]",
-    """
-[
-    1.0,
-]
-    """.strip(),
-)
-single_test(
-    "[1, 2.0]",
-    "[1, 2.0]",
-    """
-[
-    1,
-    2.0,
-]
-    """.strip(),
-)
-single_test(
-    "{ foo: bar }",
-    "{foo: bar}",
-    """
-{
-    foo: bar,
-}
-    """.strip(),
-)
-single_test(
-    "{ 'foo': bar }",
-    "{'foo': bar}",
-    """
-{
-    'foo': bar,
-}
-    """.strip(),
-)
-single_test(
-    "{ 'bim': boo, hi: [there, jim]}",
-    "{'bim': boo, hi: [there, jim]}",
-    """
-{
-    'bim': boo,
-    hi: [
-        there,
-        jim,
-    ],
-}
-    """.strip(),
-)
-single_test(
-    "(foo=bar, bim={baz: boo},)",
-    "(foo=bar, bim={baz: boo})",
-    """
-(
-    foo=bar,
-    bim={
-        baz: boo,
-    },
-)
-    """.strip(),
-)
-single_test(
-    "(foo,bar=baz,[bim,bloo],what={is:this})",
-    "(foo, bar=baz, [bim, bloo], what={is: this})",
-    """
-(
-    foo,
-    bar=baz,
-    [
-        bim,
-        bloo,
-    ],
-    what={
-        is: this,
-    },
-)
-    """.strip(),
-)
-single_test(
-    "[foo()]",
-    "[foo()]",
-    """
-[
-    foo(),
-]
-    """.strip(),
-)
-single_test(
-    "[foo(bar)]",
-    "[foo(bar)]",
-    """
-[
-    foo(
-        bar,
-    ),
-]
-    """.strip(),
-)
-single_test(
-    """
-    (foo, {'kwi': zok.pim,
-           'bel': zok.wub,
-           'pok': zok.nux,
-           'lon': dee(foo),
-           'hoi': dee(zok.che.rem('eph', toi=mep))},
-    bar='bim', kuh={'rif': tou})
-    """.strip(),
-    "(foo, {'kwi': zok.pim, 'bel': zok.wub, 'pok': zok.nux, 'lon': dee(foo), 'hoi': dee(zok.che.rem('eph', toi=mep))}, bar='bim', kuh={'rif': tou})",  # NOQA
-    """
-(
-    foo,
+        foo,
+    }
+        """.strip(),
+    )
+    single_test(
+        '{ "foo" }',
+        '{"foo"}',
+        '''
     {
-        'kwi': zok.pim,
-        'bel': zok.wub,
-        'pok': zok.nux,
-        'lon': dee(
-            foo,
+        "foo",
+    }
+        '''.strip(),
+    )
+    single_test(
+        "{ 'foo' }",
+        "{'foo'}",
+        """
+    {
+        'foo',
+    }
+        """.strip(),
+    )
+    single_test(
+        "[foo.bar]",
+        "[foo.bar]",
+        """
+    [
+        foo.bar,
+    ]
+        """.strip(),
+    )
+    single_test(
+        "[1]",
+        "[1]",
+        """
+    [
+        1,
+    ]
+        """.strip(),
+    )
+    single_test(
+        "[1.]",
+        "[1.]",
+        """
+    [
+        1.,
+    ]
+        """.strip(),
+    )
+    single_test(
+        "[1.0]",
+        "[1.0]",
+        """
+    [
+        1.0,
+    ]
+        """.strip(),
+    )
+    single_test(
+        "[1, 2.0]",
+        "[1, 2.0]",
+        """
+    [
+        1,
+        2.0,
+    ]
+        """.strip(),
+    )
+    single_test(
+        "{ foo: bar }",
+        "{foo: bar}",
+        """
+    {
+        foo: bar,
+    }
+        """.strip(),
+    )
+    single_test(
+        "{ 'foo': bar }",
+        "{'foo': bar}",
+        """
+    {
+        'foo': bar,
+    }
+        """.strip(),
+    )
+    single_test(
+        "{ 'bim': boo, hi: [there, jim]}",
+        "{'bim': boo, hi: [there, jim]}",
+        """
+    {
+        'bim': boo,
+        hi: [
+            there,
+            jim,
+        ],
+    }
+        """.strip(),
+    )
+    single_test(
+        "(foo=bar, bim={baz: boo},)",
+        "(foo=bar, bim={baz: boo})",
+        """
+    (
+        foo=bar,
+        bim={
+            baz: boo,
+        },
+    )
+        """.strip(),
+    )
+    single_test(
+        "(foo,bar=baz,[bim,bloo],what={is:this})",
+        "(foo, bar=baz, [bim, bloo], what={is: this})",
+        """
+    (
+        foo,
+        bar=baz,
+        [
+            bim,
+            bloo,
+        ],
+        what={
+            is: this,
+        },
+    )
+        """.strip(),
+    )
+    single_test(
+        "[foo()]",
+        "[foo()]",
+        """
+    [
+        foo(),
+    ]
+        """.strip(),
+    )
+    single_test(
+        "[foo(bar)]",
+        "[foo(bar)]",
+        """
+    [
+        foo(
+            bar,
         ),
-        'hoi': dee(
-            zok.che.rem(
-                'eph',
-                toi=mep,
+    ]
+        """.strip(),
+    )
+    single_test(
+        """
+        (foo, {'kwi': zok.pim,
+            'bel': zok.wub,
+            'pok': zok.nux,
+            'lon': dee(foo),
+            'hoi': dee(zok.che.rem('eph', toi=mep))},
+        bar='bim', kuh={'rif': tou})
+        """.strip(),
+        "(foo, {'kwi': zok.pim, 'bel': zok.wub, 'pok': zok.nux, 'lon': dee(foo), 'hoi': dee(zok.che.rem('eph', toi=mep))}, bar='bim', kuh={'rif': tou})",  # NOQA
+        """
+    (
+        foo,
+        {
+            'kwi': zok.pim,
+            'bel': zok.wub,
+            'pok': zok.nux,
+            'lon': dee(
+                foo,
             ),
-        ),
-    },
-    bar='bim',
-    kuh={
-        'rif': tou,
-    },
-)
-    """.strip(),
-)
+            'hoi': dee(
+                zok.che.rem(
+                    'eph',
+                    toi=mep,
+                ),
+            ),
+        },
+        bar='bim',
+        kuh={
+            'rif': tou,
+        },
+    )
+        """.strip(),
+    )
